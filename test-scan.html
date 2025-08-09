@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>扫码测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        video { width: 100%; max-width: 400px; border: 2px solid #ccc; }
+        .result { margin: 20px 0; padding: 10px; background: #f0f0f0; }
+        button { padding: 10px 20px; margin: 10px; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <h1>ZXing.js 扫码测试</h1>
+    
+    <video id="video" autoplay muted playsinline></video>
+    <br>
+    <button id="start">开始扫码</button>
+    <button id="stop">停止扫码</button>
+    
+    <div id="results"></div>
+
+    <script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
+    <script>
+        const video = document.getElementById('video');
+        const results = document.getElementById('results');
+        const startBtn = document.getElementById('start');
+        const stopBtn = document.getElementById('stop');
+        
+        let codeReader = new ZXing.BrowserMultiFormatReader();
+        let isScanning = false;
+
+        startBtn.addEventListener('click', async () => {
+            try {
+                console.log('开始扫码...');
+                
+                // 获取摄像头
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' }
+                });
+                video.srcObject = stream;
+                
+                isScanning = true;
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                
+                // 开始扫码
+                codeReader.decodeFromVideoDevice(null, 'video', (result, err) => {
+                    if (result && isScanning) {
+                        console.log('扫码成功:', result);
+                        
+                        const resultDiv = document.createElement('div');
+                        resultDiv.className = 'result';
+                        resultDiv.innerHTML = `
+                            <strong>格式:</strong> ${result.format}<br>
+                            <strong>内容:</strong> ${result.text}<br>
+                            <strong>时间:</strong> ${new Date().toLocaleString()}
+                        `;
+                        results.insertBefore(resultDiv, results.firstChild);
+                    }
+                    
+                    if (err && !(err instanceof ZXing.NotFoundException)) {
+                        console.error('扫码错误:', err);
+                    }
+                });
+                
+            } catch (error) {
+                console.error('启动失败:', error);
+                alert('无法访问摄像头: ' + error.message);
+            }
+        });
+
+        stopBtn.addEventListener('click', () => {
+            isScanning = false;
+            codeReader.reset();
+            
+            if (video.srcObject) {
+                const tracks = video.srcObject.getTracks();
+                tracks.forEach(track => track.stop());
+                video.srcObject = null;
+            }
+            
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        });
+    </script>
+</body>
+</html>

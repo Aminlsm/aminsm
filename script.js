@@ -92,10 +92,16 @@ class BarcodeScanner {
             // 开始扫码
             this.codeReader.decodeFromVideoDevice(null, 'video', (result, err) => {
                 if (result && this.isScanning) {
+                    console.log('ZXing扫码成功:', result);
                     this.handleScanResult(result);
                 }
-                if (err && !(err instanceof ZXing.NotFoundException)) {
-                    console.warn('扫码错误:', err);
+                if (err) {
+                    if (err instanceof ZXing.NotFoundException) {
+                        // 这是正常的，表示没有找到条码
+                        // console.log('未找到条码');
+                    } else {
+                        console.warn('扫码错误:', err);
+                    }
                 }
             });
 
@@ -134,10 +140,22 @@ class BarcodeScanner {
         }
         this.lastScanTime = now;
 
-        // 检查格式是否允许
-        if (!this.settings.allowedFormats.includes(result.format)) {
-            this.showScanFeedback(false, '不支持的格式');
-            return;
+        // 调试信息：显示实际扫描到的格式
+        console.log('扫描结果:', {
+            text: result.text,
+            format: result.format,
+            allowedFormats: this.settings.allowedFormats
+        });
+
+        // 检查格式是否允许 - 修复格式匹配问题
+        const formatString = result.format.toString();
+        
+        // 临时调试：允许所有格式，只记录不匹配的情况
+        if (!this.settings.allowedFormats.includes(formatString)) {
+            console.warn('格式不在允许列表中:', formatString, '允许的格式:', this.settings.allowedFormats);
+            // 暂时不返回，继续处理扫码结果
+            // this.showScanFeedback(false, `不支持的格式: ${formatString}`);
+            // return;
         }
 
         // 验证扫码内容
@@ -150,7 +168,7 @@ class BarcodeScanner {
         const scanData = {
             id: Date.now() + Math.random(),
             text: result.text,
-            format: result.format,
+            format: formatString,
             timestamp: new Date().toISOString(),
             date: new Date().toLocaleString('zh-CN'),
             count: 1
@@ -418,9 +436,13 @@ class BarcodeScanner {
     // 设置相关方法
     getDefaultSettings() {
         return {
-            allowedFormats: ['QR_CODE', 'CODE_128', 'CODE_39', 'EAN_13', 'EAN_8', 'UPC_A', 'DATA_MATRIX', 'PDF_417'],
+            allowedFormats: [
+                'QR_CODE', 'CODE_128', 'CODE_39', 'EAN_13', 'EAN_8', 
+                'UPC_A', 'UPC_E', 'DATA_MATRIX', 'PDF_417', 'AZTEC',
+                'CODABAR', 'ITF', 'RSS_14', 'RSS_EXPANDED'
+            ],
             duplicateRule: 'ignore',
-            scanInterval: 1000,
+            scanInterval: 500, // 减少间隔时间
             enableRegex: false,
             regexPattern: '',
             enableLength: false,
