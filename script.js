@@ -5,6 +5,7 @@ class BarcodeScanner {
         this.scanResults = this.loadResults();
         this.scanCount = 0;
         this.successCount = 0;
+        this.duplicateCount = 0;
         this.lastScanTime = 0;
         this.settings = this.loadSettings();
         
@@ -30,6 +31,7 @@ class BarcodeScanner {
         this.resultsList = document.getElementById('resultsList');
         this.scanCountEl = document.getElementById('scanCount');
         this.successCountEl = document.getElementById('successCount');
+        this.duplicateCountEl = document.getElementById('duplicateCount');
         
         // 标签页元素
         this.tabBtns = document.querySelectorAll('.tab-btn');
@@ -198,6 +200,7 @@ class BarcodeScanner {
 
         let shouldAdd = false;
         let message = '扫码成功!';
+        let isSuccess = true;
 
         switch (this.settings.duplicateRule) {
             case 'ignore':
@@ -205,6 +208,7 @@ class BarcodeScanner {
                     shouldAdd = true;
                 } else {
                     message = '重复扫码已忽略';
+                    isSuccess = false; // 重复时显示警告样式
                 }
                 break;
             case 'allow':
@@ -224,6 +228,9 @@ class BarcodeScanner {
         if (shouldAdd) {
             this.scanResults.unshift(scanData);
             this.successCount++;
+        } else if (existingIndex !== -1) {
+            // 记录重复扫码次数
+            this.duplicateCount++;
         }
 
         this.scanCount++;
@@ -231,10 +238,15 @@ class BarcodeScanner {
         this.renderResults();
         this.updateDisplay();
         
-        // 反馈
-        this.showScanFeedback(true, message);
-        this.playFeedback();
-        this.updateLastScan(scanData.text, formatString);
+        // 反馈 - 根据是否成功显示不同样式
+        this.showScanFeedback(isSuccess, message);
+        
+        // 只有成功时才播放提示音和震动
+        if (isSuccess) {
+            this.playFeedback();
+        }
+        
+        this.updateLastScan(scanData.text, formatString, !isSuccess && existingIndex !== -1);
         
         // 检查自动导出
         this.checkAutoExport();
@@ -242,28 +254,55 @@ class BarcodeScanner {
 
     showScanFeedback(success, message = '') {
         const feedback = document.createElement('div');
+        
+        // 根据不同情况设置不同的颜色和图标
+        let backgroundColor, icon, displayMessage;
+        
+        if (success) {
+            backgroundColor = '#27ae60';
+            icon = '✅';
+            displayMessage = message || '扫码成功!';
+        } else if (message.includes('重复')) {
+            backgroundColor = '#f39c12'; // 橙色警告
+            icon = '⚠️';
+            displayMessage = message;
+        } else {
+            backgroundColor = '#e74c3c'; // 红色错误
+            icon = '❌';
+            displayMessage = message;
+        }
+        
         feedback.style.cssText = `
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: ${success ? '#27ae60' : '#e74c3c'};
+            background: ${backgroundColor};
             color: white;
             padding: 15px 25px;
             border-radius: 8px;
             font-weight: 600;
             z-index: 1000;
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            max-width: 300px;
+            text-align: center;
         `;
-        feedback.textContent = success ? '扫码成功!' : `扫码失败: ${message}`;
+        
+        feedback.innerHTML = `<span style="font-size: 1.2em;">${icon}</span> ${displayMessage}`;
         
         document.body.appendChild(feedback);
-        setTimeout(() => feedback.remove(), 1500);
+        setTimeout(() => feedback.remove(), 2000); // 重复提示显示时间稍长
     }
 
     updateDisplay() {
         this.scanCountEl.textContent = this.scanCount;
         this.successCountEl.textContent = this.successCount;
+        if (this.duplicateCountEl) {
+            this.duplicateCountEl.textContent = this.duplicateCount;
+        }
     }
 
     renderResults() {
@@ -352,6 +391,7 @@ class BarcodeScanner {
             this.scanResults = [];
             this.scanCount = 0;
             this.successCount = 0;
+            this.duplicateCount = 0;
             this.saveResults();
             this.renderResults();
             this.updateDisplay();
@@ -696,10 +736,20 @@ class BarcodeScanner {
         }
     }
 
-    updateLastScan(text, format) {
+    updateLastScan(text, format, isDuplicate = false) {
         if (this.lastScan) {
             const shortText = text.length > 20 ? text.substring(0, 20) + '...' : text;
-            this.lastScan.textContent = `${shortText} (${this.getFormatName(format)})`;
+            const formatName = this.getFormatName(format);
+            const duplicateIndicator = isDuplicate ? ' [重复]' : '';
+            this.lastScan.textContent = `${shortText} (${formatName})${duplicateIndicator}`;
+            
+            // 如果是重复扫码，改变颜色提示
+            if (isDuplicate) {
+                this.lastScan.style.color = '#f39c12';
+                setTimeout(() => {
+                    this.lastScan.style.color = '';
+                }, 3000);
+            }
         }
     }
 
