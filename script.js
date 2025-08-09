@@ -31,6 +31,14 @@ class BarcodeScanner {
         this.scanCountEl = document.getElementById('scanCount');
         this.successCountEl = document.getElementById('successCount');
         
+        // 标签页元素
+        this.tabBtns = document.querySelectorAll('.tab-btn');
+        this.tabContents = document.querySelectorAll('.tab-content');
+        
+        // 扫码状态元素
+        this.scanStatus = document.getElementById('scanStatus');
+        this.lastScan = document.getElementById('lastScan');
+        
         // 设置弹窗元素
         this.settingsModal = document.getElementById('settingsModal');
         this.closeModal = document.getElementById('closeModal');
@@ -74,6 +82,11 @@ class BarcodeScanner {
         document.getElementById('autoExport').addEventListener('change', (e) => {
             document.getElementById('autoExportCount').disabled = !e.target.checked;
         });
+        
+        // 标签页切换事件
+        this.tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => this.switchTab(btn.dataset.tab));
+        });
     }
 
     async startScanning() {
@@ -81,6 +94,7 @@ class BarcodeScanner {
             this.startBtn.disabled = true;
             this.stopBtn.disabled = false;
             this.isScanning = true;
+            this.updateScanStatus('正在启动...');
 
             // 获取摄像头权限
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -88,6 +102,7 @@ class BarcodeScanner {
             });
             
             this.video.srcObject = stream;
+            this.updateScanStatus('扫码中...');
             
             // 开始扫码
             this.codeReader.decodeFromVideoDevice(null, 'video', (result, err) => {
@@ -109,6 +124,7 @@ class BarcodeScanner {
             console.error('启动扫码失败:', error);
             alert('无法访问摄像头，请检查权限设置');
             this.resetButtons();
+            this.updateScanStatus('启动失败');
         }
     }
 
@@ -124,6 +140,7 @@ class BarcodeScanner {
         }
         
         this.resetButtons();
+        this.updateScanStatus('已停止');
     }
 
     resetButtons() {
@@ -217,6 +234,7 @@ class BarcodeScanner {
         // 反馈
         this.showScanFeedback(true, message);
         this.playFeedback();
+        this.updateLastScan(scanData.text, formatString);
         
         // 检查自动导出
         this.checkAutoExport();
@@ -652,6 +670,137 @@ class BarcodeScanner {
             this.exportJson();
             this.showScanFeedback(true, `已自动导出${this.settings.autoExportCount}条记录`);
         }
+    }
+
+    // 标签页相关方法
+    switchTab(tabName) {
+        // 更新标签按钮状态
+        this.tabBtns.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tabName);
+        });
+
+        // 更新标签内容显示
+        this.tabContents.forEach(content => {
+            content.classList.toggle('active', content.id === `${tabName}-tab`);
+        });
+
+        // 如果切换到统计页面，更新统计数据
+        if (tabName === 'statistics') {
+            this.updateStatistics();
+        }
+    }
+
+    updateScanStatus(status) {
+        if (this.scanStatus) {
+            this.scanStatus.textContent = status;
+        }
+    }
+
+    updateLastScan(text, format) {
+        if (this.lastScan) {
+            const shortText = text.length > 20 ? text.substring(0, 20) + '...' : text;
+            this.lastScan.textContent = `${shortText} (${this.getFormatName(format)})`;
+        }
+    }
+
+    // 统计相关方法
+    updateStatistics() {
+        const stats = this.calculateStatistics();
+        
+        // 更新统计卡片
+        document.getElementById('totalScans').textContent = this.scanCount;
+        document.getElementById('uniqueScans').textContent = this.scanResults.length;
+        document.getElementById('todayScans').textContent = stats.todayCount;
+        document.getElementById('mostUsedFormat').textContent = stats.mostUsedFormat;
+
+        // 更新图表
+        this.renderFormatChart(stats.formatDistribution);
+        this.renderTimeChart(stats.timeDistribution);
+    }
+
+    calculateStatistics() {
+        const today = new Date().toDateString();
+        const todayCount = this.scanResults.filter(item => 
+            new Date(item.timestamp).toDateString() === today
+        ).length;
+
+        // 格式分布统计
+        const formatCounts = {};
+        this.scanResults.forEach(item => {
+            const format = item.format;
+            formatCounts[format] = (formatCounts[format] || 0) + (item.count || 1);
+        });
+
+        const formatDistribution = Object.entries(formatCounts)
+            .map(([format, count]) => ({ format, count }))
+            .sort((a, b) => b.count - a.count);
+
+        const mostUsedFormat = formatDistribution.length > 0 
+            ? this.getFormatName(formatDistribution[0].format)
+            : '-';
+
+        // 时间分布统计（按小时）
+        const hourCounts = new Array(24).fill(0);
+        this.scanResults.forEach(item => {
+            const hour = new Date(item.timestamp).getHours();
+            hourCounts[hour] += item.count || 1;
+        });
+
+        const timeDistribution = hourCounts.map((count, hour) => ({
+            hour: `${hour.toString().padStart(2, '0')}:00`,
+            count
+        })).filter(item => item.count > 0);
+
+        return {
+            todayCount,
+            mostUsedFormat,
+            formatDistribution,
+            timeDistribution
+        };
+    }
+
+    renderFormatChart(formatDistribution) {
+        const container = document.getElementById('formatChart');
+        if (!container || formatDistribution.length === 0) {
+            container.innerHTML = '<p>暂无数据</p>';
+            return;
+        }
+
+        const maxCount = Math.max(...formatDistribution.map(item => item.count));
+        const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'];
+
+        container.innerHTML = formatDistribution.map((item, index) => `
+            <div class="format-chart-item">
+                <div class="format-color" style="background: ${colors[index % colors.length]}"></div>
+                <div class="format-name">${this.getFormatName(item.format)}</div>
+                <div class="format-count">${item.count}</div>
+                <div class="format-bar">
+                    <div class="format-bar-fill" 
+                         style="width: ${(item.count / maxCount) * 100}%; background: ${colors[index % colors.length]}">
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    renderTimeChart(timeDistribution) {
+        const container = document.getElementById('timeChart');
+        if (!container || timeDistribution.length === 0) {
+            container.innerHTML = '<p>暂无数据</p>';
+            return;
+        }
+
+        const maxCount = Math.max(...timeDistribution.map(item => item.count));
+
+        container.innerHTML = timeDistribution.map(item => `
+            <div class="time-chart-item">
+                <div class="time-label">${item.hour}</div>
+                <div class="time-bar">
+                    <div class="time-bar-fill" style="width: ${(item.count / maxCount) * 100}%"></div>
+                </div>
+                <div class="time-count">${item.count}</div>
+            </div>
+        `).join('');
     }
 }
 

@@ -16,44 +16,107 @@
             </div>
         </header>
 
-        <main>
-            <div class="scanner-section">
-                <div class="video-container">
-                    <video id="video" autoplay muted playsinline></video>
-                    <canvas id="canvas" style="display: none;"></canvas>
-                </div>
-                
-                <div class="controls">
-                    <button id="startBtn" class="btn primary">开始扫码</button>
-                    <button id="stopBtn" class="btn secondary" disabled>停止扫码</button>
-                    <button id="settingsBtn" class="btn">扫码设置</button>
-                    <button id="clearBtn" class="btn danger">清空记录</button>
+        <!-- 标签页导航 -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="scanner">📱 扫码</button>
+            <button class="tab-btn" data-tab="records">📋 记录</button>
+            <button class="tab-btn" data-tab="statistics">📊 统计</button>
+        </nav>
+
+        <main class="tab-container">
+            <!-- 扫码标签页 -->
+            <div id="scanner-tab" class="tab-content active">
+                <div class="scanner-section">
+                    <div class="video-container">
+                        <video id="video" autoplay muted playsinline></video>
+                        <canvas id="canvas" style="display: none;"></canvas>
+                        <div class="scan-overlay">
+                            <div class="scan-frame"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="controls">
+                        <button id="startBtn" class="btn primary">开始扫码</button>
+                        <button id="stopBtn" class="btn secondary" disabled>停止扫码</button>
+                        <button id="settingsBtn" class="btn">扫码设置</button>
+                    </div>
+
+                    <div class="scan-status-panel">
+                        <div class="status-item">
+                            <span class="status-label">扫码状态:</span>
+                            <span id="scanStatus" class="status-value">未开始</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">最近扫码:</span>
+                            <span id="lastScan" class="status-value">无</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="results-section">
-                <div class="section-header">
-                    <h2>扫码记录</h2>
-                    <div class="export-controls">
-                        <button id="exportJson" class="btn">导出JSON</button>
-                        <button id="exportCsv" class="btn">导出CSV</button>
-                        <button id="shareBtn" class="btn">分享数据</button>
+            <!-- 记录标签页 -->
+            <div id="records-tab" class="tab-content">
+                <div class="results-section">
+                    <div class="section-header">
+                        <h2>扫码记录</h2>
+                        <div class="export-controls">
+                            <button id="exportJson" class="btn">导出JSON</button>
+                            <button id="exportCsv" class="btn">导出CSV</button>
+                            <button id="shareBtn" class="btn">分享数据</button>
+                            <button id="clearBtn" class="btn danger">清空记录</button>
+                        </div>
+                    </div>
+                    
+                    <div class="filter-controls">
+                        <select id="typeFilter">
+                            <option value="">所有类型</option>
+                            <option value="QR_CODE">二维码</option>
+                            <option value="CODE_128">Code 128</option>
+                            <option value="CODE_39">Code 39</option>
+                            <option value="EAN_13">EAN-13</option>
+                            <option value="EAN_8">EAN-8</option>
+                        </select>
+                        <input type="text" id="searchInput" placeholder="搜索内容...">
+                    </div>
+
+                    <div id="resultsList" class="results-list"></div>
+                </div>
+            </div>
+
+            <!-- 统计标签页 -->
+            <div id="statistics-tab" class="tab-content">
+                <div class="statistics-section">
+                    <h2>扫码统计</h2>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-number" id="totalScans">0</div>
+                            <div class="stat-label">总扫码次数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="uniqueScans">0</div>
+                            <div class="stat-label">唯一记录数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="todayScans">0</div>
+                            <div class="stat-label">今日扫码</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="mostUsedFormat">-</div>
+                            <div class="stat-label">最常用格式</div>
+                        </div>
+                    </div>
+
+                    <div class="chart-section">
+                        <h3>格式分布</h3>
+                        <div id="formatChart" class="chart-container"></div>
+                    </div>
+
+                    <div class="chart-section">
+                        <h3>扫码时间分布</h3>
+                        <div id="timeChart" class="chart-container"></div>
                     </div>
                 </div>
-                
-                <div class="filter-controls">
-                    <select id="typeFilter">
-                        <option value="">所有类型</option>
-                        <option value="QR_CODE">二维码</option>
-                        <option value="CODE_128">Code 128</option>
-                        <option value="CODE_39">Code 39</option>
-                        <option value="EAN_13">EAN-13</option>
-                        <option value="EAN_8">EAN-8</option>
-                    </select>
-                    <input type="text" id="searchInput" placeholder="搜索内容...">
-                </div>
-
-                <div id="resultsList" class="results-list"></div>
             </div>
         </main>
     </div>
