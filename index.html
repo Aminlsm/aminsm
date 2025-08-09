@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>扫码统计工具</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>扫码统计工具</h1>
+            <div class="stats">
+                <span>已扫描: <span id="scanCount">0</span></span>
+                <span>成功: <span id="successCount">0</span></span>
+            </div>
+        </header>
+
+        <main>
+            <div class="scanner-section">
+                <div class="video-container">
+                    <video id="video" autoplay muted playsinline></video>
+                    <canvas id="canvas" style="display: none;"></canvas>
+                </div>
+                
+                <div class="controls">
+                    <button id="startBtn" class="btn primary">开始扫码</button>
+                    <button id="stopBtn" class="btn secondary" disabled>停止扫码</button>
+                    <button id="settingsBtn" class="btn">扫码设置</button>
+                    <button id="clearBtn" class="btn danger">清空记录</button>
+                </div>
+            </div>
+
+            <div class="results-section">
+                <div class="section-header">
+                    <h2>扫码记录</h2>
+                    <div class="export-controls">
+                        <button id="exportJson" class="btn">导出JSON</button>
+                        <button id="exportCsv" class="btn">导出CSV</button>
+                        <button id="shareBtn" class="btn">分享数据</button>
+                    </div>
+                </div>
+                
+                <div class="filter-controls">
+                    <select id="typeFilter">
+                        <option value="">所有类型</option>
+                        <option value="QR_CODE">二维码</option>
+                        <option value="CODE_128">Code 128</option>
+                        <option value="CODE_39">Code 39</option>
+                        <option value="EAN_13">EAN-13</option>
+                        <option value="EAN_8">EAN-8</option>
+                    </select>
+                    <input type="text" id="searchInput" placeholder="搜索内容...">
+                </div>
+
+                <div id="resultsList" class="results-list"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 设置弹窗 -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>扫码规则设置</h3>
+                <button id="closeModal" class="close-btn">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="settings-section">
+                    <h4>允许的扫码格式</h4>
+                    <div class="format-checkboxes">
+                        <label><input type="checkbox" value="QR_CODE" checked> 二维码 (QR Code)</label>
+                        <label><input type="checkbox" value="CODE_128" checked> Code 128</label>
+                        <label><input type="checkbox" value="CODE_39" checked> Code 39</label>
+                        <label><input type="checkbox" value="EAN_13" checked> EAN-13</label>
+                        <label><input type="checkbox" value="EAN_8" checked> EAN-8</label>
+                        <label><input type="checkbox" value="UPC_A" checked> UPC-A</label>
+                        <label><input type="checkbox" value="DATA_MATRIX" checked> Data Matrix</label>
+                        <label><input type="checkbox" value="PDF_417" checked> PDF417</label>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h4>重复扫码规则</h4>
+                    <div class="radio-group">
+                        <label><input type="radio" name="duplicateRule" value="ignore" checked> 忽略重复</label>
+                        <label><input type="radio" name="duplicateRule" value="allow"> 允许重复</label>
+                        <label><input type="radio" name="duplicateRule" value="count"> 计数重复</label>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h4>扫码间隔设置</h4>
+                    <div class="input-group">
+                        <label>最小间隔时间 (毫秒):</label>
+                        <input type="number" id="scanInterval" value="1000" min="0" max="10000">
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h4>内容验证规则</h4>
+                    <div class="validation-rules">
+                        <div class="input-group">
+                            <label><input type="checkbox" id="enableRegex"> 启用正则表达式验证</label>
+                            <input type="text" id="regexPattern" placeholder="输入正则表达式" disabled>
+                        </div>
+                        <div class="input-group">
+                            <label><input type="checkbox" id="enableLength"> 启用长度限制</label>
+                            <div class="length-inputs">
+                                <input type="number" id="minLength" placeholder="最小长度" min="0" disabled>
+                                <input type="number" id="maxLength" placeholder="最大长度" min="0" disabled>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label><input type="checkbox" id="enablePrefix"> 启用前缀过滤</label>
+                            <input type="text" id="prefixFilter" placeholder="必须包含的前缀" disabled>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h4>扫码提示</h4>
+                    <div class="input-group">
+                        <label><input type="checkbox" id="enableSound" checked> 启用扫码提示音</label>
+                    </div>
+                    <div class="input-group">
+                        <label><input type="checkbox" id="enableVibration" checked> 启用震动反馈</label>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h4>自动操作</h4>
+                    <div class="input-group">
+                        <label><input type="checkbox" id="autoExport"> 达到指定数量自动导出</label>
+                        <input type="number" id="autoExportCount" placeholder="自动导出数量" min="1" disabled>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button id="resetSettings" class="btn secondary">重置默认</button>
+                <button id="saveSettings" class="btn primary">保存设置</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
